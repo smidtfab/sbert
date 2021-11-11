@@ -1,0 +1,26 @@
+{
+    "general": {
+        "job_id" : "Test_Run",
+        "train_device": "gpu"
+    },
+    "network": {
+        "architecture": "bert",
+        "pretrained": true,
+        "n_epochs" : 1,
+        "batch_size" : 16, 
+        "num_target_classes": 3,
+        "batch_norm": true,
+        "learning_rate" : 2e-5
+    },  
+    "data" : {
+        "base_dir": "C:/Users/fsc/Documents/Privat/sbert/"
+    },
+    "data_augmentation" : {
+        
+    },
+    "prediction" : {
+        "path_results_dir" : "",
+        "path_model_pt" : "",
+        "path_data" : ""
+    }   
+}
