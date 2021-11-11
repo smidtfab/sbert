@@ -4,7 +4,7 @@
         "train_device": "gpu"
     },
     "network": {
-        "architecture": "bert",
+        "architecture": "bert-base-cased",
         "pretrained": true,
         "n_epochs" : 1,
         "batch_size" : 16, 
