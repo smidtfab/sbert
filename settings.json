@@ -13,7 +13,8 @@
         "learning_rate" : 2e-5
     },  
     "data" : {
-        "base_dir": "C:/Users/fsc/Documents/Privat/sbert/"
+        "base_dir": "C:/Users/fsc/Documents/Privat/sbert/",
+        "training_data_path": "C:/Users/fsc/Documents/Privat/sbert/data_raw/train.tsv"
     },
     "data_augmentation" : {
         

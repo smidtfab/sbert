@@ -1,6 +1,6 @@
 import json
 
-def load_settings(path_settings):
+def load_settings(path_settings) -> dict:
     """Loads the settings json as dictionary
 
     Args:

@@ -1,4 +1,4 @@
-from ..utils import reader
+from utils import reader
 from torch.utils.data import Dataset
 
 class Dataset(Dataset):
