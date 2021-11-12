@@ -2,54 +2,28 @@ import torch
 from torch import nn
 import tqdm
 import numpy as np
-#from preprocessing import prepare_bert_input
-
-
+from transformers import AutoTokenizer, AutoModel
 class Transformer(nn.Module):
-    def __init__(self, model_name) -> None:
+    def __init__(self, model_name, batch_size=16) -> None:
         super().__init__()
         self.model_name = model_name
-        self.tokenizer = torch.hub.load(
-            'huggingface/pytorch-transformers', 'tokenizer', model_name)
-        self.transformer = torch.hub.load(
-            'huggingface/pytorch-transformers', 'model', model_name)
+        self.tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
+        self.transformer = AutoModel.from_pretrained('bert-base-cased')
+        self.batch_size = batch_size
 
-    def forward(self, sent_pair_list, checkpoint=True, bs=None):
-        all_probs = None
+    def forward(self, sentence_pair_list):
+        tokenizer_output = self.tokenizer(sentence_pair_list, padding=True, add_special_tokens=True, return_tensors='pt')
+        transformer_output = self.transformer(**tokenizer_output)
+        print(transformer_output)
+        return tokenizer_output, transformer_output
 
-        if bs is None:
-            bs = self.batch_size
-            no_prog_bar = True
-        else:
-            no_prog_bar = False
-
-        for batch_idx in tqdm(range(0, len(sent_pair_list), bs), disable=no_prog_bar, desc='evaluate'):
-            probs = self.ff(
-                sent_pair_list[batch_idx:batch_idx+bs], checkpoint)[1].data.cpu().numpy()
-            if all_probs is None:
-                all_probs = probs
-            else:
-                all_probs = np.append(all_probs, probs, axis=0)
-
-        labels = []
-
-        for pp in all_probs:
-            ll = np.argmax(pp)
-            if ll == 0:
-                labels.append('contradiction')
-            elif ll == 1:
-                labels.append('entail')
-            else:
-                assert ll == 2
-                labels.append('neutral')
-
-        return labels, all_probs
-
-    def ff(self, sent_pair_list):
+    def calculate_embedding(self, sentence_pair_list):
         ids, types, masks = build_batch(
-            self.tokenizer, sent_pair_list, self.model_name)
+            self.tokenizer, sentence_pair_list, self.model_name)
+
         if ids is None:
             return None
+
         ids_tensor = torch.tensor(ids)
         types_tensor = torch.tensor(types)
         masks_tensor = torch.tensor(masks)
@@ -59,29 +33,25 @@ class Transformer(nn.Module):
         masks_tensor = masks_tensor.to('cpu')
 
         encoded_layers, _ = self.transformer(
-            input_ids=ids_tensor, token_type_ids=types_tensor, attention_mask=masks_tensor, return_dict=False)
+            input_ids=ids_tensor, token_type_ids=types_tensor, attention_mask=masks_tensor)
 
-        #logits = self.nli_head(cls_vecs)
-        #probs = self.sm(logits)
-
+        print(type(encoded_layers))
         print(encoded_layers.shape)
 
-        # to reduce gpu memory usage
-        # del ids_tensor
-        # del types_tensor
-        # del masks_tensor
-        # torch.cuda.empty_cache() # releases all unoccupied cached memory
-
-        return encoded_layers
+        return encoded_layers, masks_tensor
 
 
 def get_tokenized_input(tokenizer, sent1, sent2, model_type):
+    tokenizer_output = tokenizer([sent1, sent2], padding=True, add_special_tokens=True, return_tensors='pt')
+    print(f"tokenizer_output {tokenizer_output}")
+    print(type(tokenizer_output['attention_mask']))
 
-    tokenized_text = tokenizer.tokenize(sent1, sent2, add_special_tokens=True)
-    indexed_tokens = tokenizer.encode(sent1, sent2, add_special_tokens=True)
-    print(tokenized_text)
-    print(indexed_tokens)
-    assert len(tokenized_text) == len(indexed_tokens)
+    """
+    #tokenized_text = tokenizer.tokenize(sent1, sent2, add_special_tokens=True)
+    #indexed_tokens = tokenizer.encode(sent1, sent2, add_special_tokens=True)
+    #print(f"TOKENIZED TEXT {tokenized_text}")
+    #print(indexed_tokens)
+    #assert len(tokenized_text) == len(indexed_tokens)
 
     if len(tokenized_text) > 500:
         return None, None
@@ -99,7 +69,8 @@ def get_tokenized_input(tokenizer, sent1, sent2, model_type):
             segments_ids.append(1)
         else:
             segments_ids.append(0)
-    return indexed_tokens, segments_ids
+    """
+    return tokenizer_output
 
 
 def build_batch(tokenizer, text_list, model_type):
@@ -109,6 +80,7 @@ def build_batch(tokenizer, text_list, model_type):
     longest = -1
 
     for pair in text_list:
+        print(f"pair -> {pair}")
         sent1, sent2 = pair
         ids, segs = get_tokenized_input(tokenizer, sent1, sent2, model_type)
         if ids is None or segs is None:
@@ -167,5 +139,5 @@ if __name__ == "__main__":
     data = [[text_1, text_2], [text_3, text_4]]
     with torch.no_grad():
         model = Transformer('bert-base-cased')
-        output = model.ff(data)
+        output = model(data)
     print(output)
