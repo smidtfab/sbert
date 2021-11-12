@@ -6,11 +6,12 @@
     "network": {
         "architecture": "bert-base-cased",
         "pretrained": true,
-        "n_epochs" : 1,
+        "epochs" : 1,
         "batch_size" : 16, 
         "num_target_classes": 3,
         "batch_norm": true,
-        "learning_rate" : 2e-5
+        "learning_rate": 2e-5,
+        "warmup_percent": 0.1
     },  
     "data" : {
         "base_dir": "C:/Users/fsc/Documents/Privat/sbert/",
