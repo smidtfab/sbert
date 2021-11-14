@@ -7,7 +7,7 @@
         "architecture": "bert-base-cased",
         "tokenizer_name": "bert-base-cased",
         "pretrained": true,
-        "epochs" : 1,
+        "epochs" : 2,
         "batch_size" : 16, 
         "num_target_classes": 3,
         "batch_norm": true,
@@ -23,8 +23,8 @@
         
     },
     "prediction" : {
-        "path_results_dir" : "",
-        "path_model_pt" : "",
-        "path_data" : ""
+        "path_model_pt" : "best_model_weights",
+        "path_data" : "C:/Users/fsc/Documents/Privat/sbert/data_raw/test_subset.tsv",
+        "do_classification": true
     }   
 }
