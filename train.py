@@ -18,6 +18,9 @@ from model.Classifier import Classifier
 from model.Sentence_Transformer import SBERT
 
 def main():
+    """
+    Main loop to train the SBERT Model
+    """
     # Parse args that have been provided
     parser = argparse.ArgumentParser(description="Training Script")
     parser.add_argument('--settings_path', help='path to settings')
@@ -33,7 +36,6 @@ def main():
 
     # Load settings from json
     settings = load_settings(path_settings)
-    #print(settings)
 
     # Load the data
     collate_fn = CustomSentenceBatching()
@@ -41,16 +43,12 @@ def main():
     train_loader = DataLoader(train_set, batch_size=settings['network']['batch_size'], collate_fn=collate_fn)
     dev_set = Dataset(settings['data']['training_data_path'], partition_label='dev')
     dev_loader = DataLoader(dev_set, batch_size=settings['network']['batch_size'], collate_fn=collate_fn)
-    #print(next(iter(train_loader)))
-    #print("#####################################train_set")
-    #print(len(train_loader))
 
     # Get BERT model
     bert = Transformer(model_name=settings['network']['architecture'], tokenizer_name=settings['network']['tokenizer_name'])
     pool = Pooling()
     classifier = Classifier(sent_embedding_dim=settings['network']['sent_embedding_dim'], num_classes=settings['network']['num_target_classes'])
     model = SBERT(bert, pool, classifier)
-    #print(model)
 
     # Get optimizer and scheduler
     optimizer = Adam(model.parameters(),
@@ -60,22 +58,26 @@ def main():
     warmup_steps = int(total_steps * settings['network']['warmup_percent'])
     scheduler = transformers.get_constant_schedule_with_warmup(optimizer, num_warmup_steps=warmup_steps)
 
+    # Set up loss function 
     loss_fn = nn.CrossEntropyLoss()
 
     print("Starting training ...")
 
+    # Init best loss values used for saving the best model
     best_train_loss = math.inf
     best_dev_loss = math.inf
+    
     for ep in range(settings['network']['epochs']):
         print(
             f"--- EPOCH {ep} ---", flush=True)
-        #model_dic = train(Sentence_Transformer, optimizer, scheduler, train_loader, settings['network']['batch_size'], )
-        # Measure how long the training epoch takes.
+
+        # Start time of epoch
         t0 = time.time()
 
-        # Reset the total loss for this epoch.
+        # Reset the total train loss for this epoch
         total_train_loss = 0.0
 
+        # Put model back in train mode
         model.train()
 
         # For each batch of training data...
@@ -90,63 +92,58 @@ def main():
                 print('  Batch {:>5,}  of  {:>5,}.    Elapsed: {:}.'.format(step, len(train_loader), elapsed))
 
             # Unpack this training batch from our dataloader. 
-            #
-            # As we unpack the batch, we'll also copy each tensor to the GPU using the 
-            # `to` method.
-            #
             # `batch` contains three objects:
             #   [0]: encoded dictionary with input_ids, attention_masks for first sentence
             #   [1]: encoded dictionary with input_ids, attention_masks for second sentence
             #   [2]: labels 
-            #print(batch)
             sentences_encoded_dict = batch[0]
             sentences2_encoded_dict = batch[1]
             labels = batch[2]
 
-            # Always clear any previously calculated gradients before performing a
-            # backward pass. PyTorch doesn't do this automatically because 
-            # accumulating the gradients is "convenient while training RNNs". 
-            # (source: https://stackoverflow.com/questions/48001598/why-do-we-need-to-call-zero-grad-in-pytorch)
+            # Clear previous gradients
             model.zero_grad()        
 
-            # Perform a forward pass (evaluate the model on this training batch).
+            # Perform a forward pass
             output = model(sentences_encoded_dict, sentences2_encoded_dict)
             print(output)
 
-            # Accumulate the training loss over all of the batches so that we can
-            # calculate the average loss at the end. `loss` is a Tensor containing a
-            # single value; the `.item()` function just returns the Python value 
-            # from the tensor.
+            # Accumulate the training loss over all of the batches 
             loss = loss_fn(output, labels)
             total_train_loss += loss.item()
 
-            # Perform a backward pass to calculate the gradients.
+            # Perform a backward pass to calculate the gradients
             loss.backward()
 
-            # Clip the norm of the gradients to 1.0.
-            # This is to help prevent the "exploding gradients" problem.
+            # Clip the norm of the gradients to 1.0. (prevents the "exploding gradients" problem)
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
 
-            # Update parameters and take a step using the computed gradient.
-            # The optimizer dictates the "update rule"--how the parameters are
-            # modified based on their gradients, the learning rate, etc.
+            # Update parameters and take a step using the computed gradient
             optimizer.step()
 
-            # Update the learning rate.
+            # Update the learning rate
             scheduler.step()
 
+        # Reset the total dev loss for this epoch
         total_dev_loss = 0.0
-        model.eval()     # Optional when not using Model Specific layer
+
+        # Put model back in eval mode
+        model.eval()     
+
         for step, batch in enumerate(dev_loader):
-                        
+
+            # Unpack this training batch from our dataloader. 
+            # `batch` contains three objects:
+            #   [0]: encoded dictionary with input_ids, attention_masks for first sentence
+            #   [1]: encoded dictionary with input_ids, attention_masks for second sentence
+            #   [2]: labels 
             sentences_encoded_dict = batch[0]
             sentences2_encoded_dict = batch[1]
             labels = batch[2]
 
             # Perform a forward pass (evaluate the model on this training batch).
             output = model(sentences_encoded_dict, sentences2_encoded_dict)
-            print(output)
 
+            # Calculate the dev loss
             dev_loss = loss_fn(output, labels)
             total_dev_loss += dev_loss.item()   
 
