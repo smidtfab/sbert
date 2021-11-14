@@ -5,6 +5,7 @@
     },
     "network": {
         "architecture": "bert-base-cased",
+        "tokenizer_name": "bert-base-cased",
         "pretrained": true,
         "epochs" : 1,
         "batch_size" : 16, 
@@ -16,7 +17,7 @@
     },  
     "data" : {
         "base_dir": "C:/Users/fsc/Documents/Privat/sbert/",
-        "training_data_path": "C:/Users/fsc/Documents/Privat/sbert/data_raw/train.tsv"
+        "training_data_path": "C:/Users/fsc/Documents/Privat/sbert/data_raw/train_subset.tsv"
     },
     "data_augmentation" : {
         
