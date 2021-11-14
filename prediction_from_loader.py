@@ -34,8 +34,8 @@ def main():
 
     # Load the data
     collate_fn = CustomSentenceBatching()
-    dev_set = Dataset(settings['data']['training_data_path'], partition_label='dev')
-    test_loader = DataLoader(dev_set, batch_size=settings['network']['batch_size'], collate_fn=collate_fn)
+    test_set = Dataset(settings['prediction']['path_data'], partition_label='dev')
+    test_loader = DataLoader(test_set, batch_size=settings['network']['batch_size'], collate_fn=collate_fn)
 
     # Get BERT model
     bert = Transformer(model_name=settings['network']['architecture'], tokenizer_name=settings['network']['tokenizer_name'])
