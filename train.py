@@ -36,7 +36,7 @@ def main():
     #print(settings)
 
     # Load the data
-    collate_fn = CustomSentenceBatching(tokenizer_name=settings['network']['tokenizer_name'])
+    collate_fn = CustomSentenceBatching()
     train_set = Dataset(settings['data']['training_data_path'])
     train_loader = DataLoader(train_set, batch_size=settings['network']['batch_size'], collate_fn=collate_fn)
     dev_set = Dataset(settings['data']['training_data_path'], partition_label='dev')
@@ -46,7 +46,7 @@ def main():
     #print(len(train_loader))
 
     # Get BERT model
-    bert = Transformer(model_name=settings['network']['architecture'])
+    bert = Transformer(model_name=settings['network']['architecture'], tokenizer_name=settings['network']['tokenizer_name'])
     pool = Pooling()
     classifier = Classifier(sent_embedding_dim=settings['network']['sent_embedding_dim'], num_classes=settings['network']['num_target_classes'])
     model = SBERT(bert, pool, classifier)
@@ -62,10 +62,10 @@ def main():
 
     loss_fn = nn.CrossEntropyLoss()
 
-    device = 'cpu' # TODO: in settings
     print("Starting training ...")
 
     best_train_loss = math.inf
+    best_dev_loss = math.inf
     for ep in range(settings['network']['epochs']):
         print(
             f"--- EPOCH {ep} ---", flush=True)
@@ -154,7 +154,8 @@ def main():
         avg_train_loss = total_train_loss / len(train_loader)       
         avg_dev_loss = total_dev_loss / len(dev_loader)
 
-        if(avg_train_loss < best_train_loss):
+        if((avg_train_loss < best_train_loss) and (avg_dev_loss < best_dev_loss)):
+            # save model when both losses are respectively better
             model_save_name = 'best_model_weights'
             torch.save(model.state_dict(), os.path.join(os.curdir, model_save_name))
             best_train_loss = avg_train_loss
