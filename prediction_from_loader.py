@@ -75,7 +75,6 @@ def main():
 
             # Perform a forward pass
             model_output = model(sentences_encoded_dict, sentences2_encoded_dict)
-            print(model_output)
 
             if(model.do_classification):
                 # Map classification class scores to labels
@@ -84,9 +83,14 @@ def main():
                 # Calculate batch accuracy
                 batch_accuracy = calculate_accuracy(y_hat, labels)
                 print(f"Batch accuracy = {batch_accuracy}")
+            else:
+                print(f"Shape of one sentence embedding: {model_output[0].shape}")
+                print("Sentence embedding")
+                print(model_output[1])
 
-    total_accuracy = calculate_accuracy(all_y_hats, all_y)
-    print(f"Total accuracy = {total_accuracy}")    
+    if(model.do_classification):
+        total_accuracy = calculate_accuracy(all_y_hats, all_y)
+        print(f"Total accuracy = {total_accuracy}")    
 
 if __name__ == "__main__":
     main()
