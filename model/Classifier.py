@@ -2,17 +2,30 @@ import torch
 import torch.nn as nn
 
 class Classifier(nn.Module):
-    def __init__(self, sent_embedding_dim, num_classes) -> None:
+    def __init__(self, sent_embedding_dim, num_classes):
+        """The classifier module used for training the NLI task
+
+        Args:
+            sent_embedding_dim (int): the sentence embedding dimension (here 768)
+            num_classes (int): the number of classes (here 3)
+        """
         super().__init__()
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.sent_embedding_dim = sent_embedding_dim
         self.num_classes = num_classes
-        self.softmax_layer = nn.Linear(3 * self.sent_embedding_dim, self.num_classes)
-        self.device = 'gpu' if torch.cuda.is_available() else 'cpu'
+        self.softmax_layer = nn.Linear(3 * self.sent_embedding_dim, self.num_classes).to(self.device)
 
     def forward(self, pooled_embeddings_sent1, pooled_embeddings_sent2):
-        # retrieve pooled sentence input from previous model layers
-        #print(f"Pooled Emb 1 shape -> {pooled_embeddings_sent1.shape}")
-        #print(f"Pooled Emb 2 shape -> {pooled_embeddings_sent2.shape}")
+        """Forward pass for the classifier module. Applies different 
+        concats and finally the linear layer to produce class scores
+
+        Args:
+            pooled_embeddings_sent1 (torch.Tensor): the pooled embeddings for the first sentence (N x 768)
+            pooled_embeddings_sent2 (torch.Tensor): the pooled embeddings for the second sentence (N x 768)
+
+        Returns:
+            torch.Tensor: the logit class scores (N x num_classes)
+        """
         sent_embeddings_to_cat = []
 
         # u, v
@@ -25,10 +38,8 @@ class Classifier(nn.Module):
 
         # (u, v, |u-v|)
         softmax_input = torch.cat(sent_embeddings_to_cat, 1)
-        #print(f"Softmax input shape -> {softmax_input.shape}")
 
         # do classification
         softmax_output = self.softmax_layer(softmax_input.to(self.device))
-        #print(f"Softmax output shape -> {softmax_output.shape}")
         
         return softmax_output
