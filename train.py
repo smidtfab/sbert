@@ -105,7 +105,6 @@ def main():
 
             # Perform a forward pass
             output = model(sentences_encoded_dict, sentences2_encoded_dict)
-            print(output)
 
             # Accumulate the training loss over all of the batches 
             loss = loss_fn(output, labels)
