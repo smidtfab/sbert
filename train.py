@@ -8,63 +8,14 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 import transformers
 import math
+import time
 
-from dataset.dataset import Dataset
+from dataset.dataset import Dataset, CustomSentenceBatching
 from utils.load_settings import load_settings
 from model.Base_Transformer import Transformer
-
-
-def train(model, optimizer, scheduler, train_data, dev_data, batch_size, checkpoint, gpu):
-    #loss_fn = nn.CrossEntropyLoss()
-
-    step_cnt = 0
-    best_model_weights = None
-
-    for pointer in tqdm(range(0, len(train_data), batch_size), desc='training'):
-        model.train()  # model was in eval mode in evaluate(); re-activate the train mode
-        optimizer.zero_grad()  # clear gradients first
-        torch.cuda.empty_cache()  # releases all unoccupied cached memory
-
-        step_cnt += 1
-        sent_pairs = []
-        labels = []
-        for i in range(pointer, pointer+batch_size):
-            if i >= len(train_data):
-                break
-            sents = train_data[i].get_texts()
-            if len(word_tokenize(' '.join(sents))) > 300:
-                continue
-            sent_pairs.append(sents)
-            labels.append(train_data[i].get_label())
-        logits, _ = model.ff(sent_pairs, checkpoint)
-        if logits is None:
-            continue
-        true_labels = torch.LongTensor(labels)
-        if gpu:
-            true_labels = true_labels.to('cuda')
-        loss = loss_fn(logits, true_labels)
-
-        # back propagate
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
-
-        # update weights
-        optimizer.step()
-
-        # update training rate
-        scheduler.step()
-
-        if step_cnt % 2000 == 0:
-            """
-            acc = evaluate(model, dev_data, checkpoint, mute=True)
-            logging.info('==> step {} dev acc: {}'.format(step_cnt, acc))
-            if acc > best_acc:
-                best_acc = acc
-                best_model_weights = copy.deepcopy(model.cpu().state_dict())
-                model.to('cuda')
-            """
-    return best_model_weights
-
+from model.Pooling import Pooling
+from model.Classifier import Classifier
+from model.Sentence_Transformer import SBERT
 
 def main():
     # Parse args that have been provided
@@ -82,35 +33,114 @@ def main():
 
     # Load settings from json
     settings = load_settings(path_settings)
-    print(settings)
+    #print(settings)
 
     # Load the data
     train_set = Dataset(settings['data']['training_data_path'])
-    train_loader = DataLoader(
-        train_set, batch_size=settings['network']['batch_size'], shuffle=True)
-    print(len(train_loader))
+    collate_fn = CustomSentenceBatching(tokenizer_name=settings['network']['tokenizer_name'])
+    train_loader = DataLoader(train_set, batch_size=settings['network']['batch_size'], collate_fn=collate_fn)
+    #print(next(iter(train_loader)))
+    #print("#####################################train_set")
+    #print(len(train_loader))
 
     # Get BERT model
-    model = Transformer(model_name=settings['network']['architecture'])
+    bert = Transformer(model_name=settings['network']['architecture'])
+    pool = Pooling()
+    classifier = Classifier(sent_embedding_dim=settings['network']['sent_embedding_dim'], num_classes=settings['network']['num_target_classes'])
+    model = SBERT(bert, pool, classifier)
+    #print(model)
+
+    # Get optimizer and scheduler
     optimizer = Adam(model.parameters(),
                      lr=settings['network']['learning_rate'])
     total_steps = math.ceil(
         settings['network']['epochs'] * len(train_set) * 1. / settings['network']['batch_size'])
     warmup_steps = int(total_steps * settings['network']['warmup_percent'])
-    scheduler = transformers.get_scheduler(
-        optimizer, 'WarmupConstant', warmup_steps=warmup_steps, t_total=total_steps)
+    scheduler = transformers.get_constant_schedule_with_warmup(optimizer, num_warmup_steps=warmup_steps)
 
-    best_model_dic = None
+    loss_fn = nn.CrossEntropyLoss()
 
+    device = 'cpu' # TODO: in settings
+    print("Starting training ...")
     for ep in range(settings['network']['epochs']):
         print(
-            f"-------------------------- EPOCH {ep} --------------------------")
-        model_dic = train()
-        if model_dic is not None:
-            best_model_dic = model_dic
+            f"--- EPOCH {ep} ---")
+        #model_dic = train(Sentence_Transformer, optimizer, scheduler, train_loader, settings['network']['batch_size'], )
+        # Measure how long the training epoch takes.
+        t0 = time.time()
 
-    assert best_model_dic is not None
+        # Reset the total loss for this epoch.
+        total_train_loss = 0
 
+        model.train()
+
+        # For each batch of training data...
+        for step, batch in enumerate(train_loader):
+
+            # Progress update every 40 batches.
+            if step % 40 == 0 and not step == 0:
+                # Calculate elapsed time in minutes.
+                elapsed = time.time() - t0
+                
+                # Report progress.
+                print('  Batch {:>5,}  of  {:>5,}.    Elapsed: {:}.'.format(step, len(train_loader), elapsed))
+
+            # Unpack this training batch from our dataloader. 
+            #
+            # As we unpack the batch, we'll also copy each tensor to the GPU using the 
+            # `to` method.
+            #
+            # `batch` contains three objects:
+            #   [0]: encoded dictionary with input_ids, attention_masks for first sentence
+            #   [1]: encoded dictionary with input_ids, attention_masks for second sentence
+            #   [2]: labels 
+            #print(batch)
+            sentences_encoded_dict = batch[0]
+            sentences2_encoded_dict = batch[1]
+            labels = batch[2]
+
+            # Always clear any previously calculated gradients before performing a
+            # backward pass. PyTorch doesn't do this automatically because 
+            # accumulating the gradients is "convenient while training RNNs". 
+            # (source: https://stackoverflow.com/questions/48001598/why-do-we-need-to-call-zero-grad-in-pytorch)
+            model.zero_grad()        
+
+            # Perform a forward pass (evaluate the model on this training batch).
+            output = model(sentences_encoded_dict, sentences2_encoded_dict)
+            #print(output)
+
+            # Accumulate the training loss over all of the batches so that we can
+            # calculate the average loss at the end. `loss` is a Tensor containing a
+            # single value; the `.item()` function just returns the Python value 
+            # from the tensor.
+            loss = loss_fn(output, labels)
+            total_train_loss += loss.item()
+
+            # Perform a backward pass to calculate the gradients.
+            loss.backward()
+
+            # Clip the norm of the gradients to 1.0.
+            # This is to help prevent the "exploding gradients" problem.
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+
+            # Update parameters and take a step using the computed gradient.
+            # The optimizer dictates the "update rule"--how the parameters are
+            # modified based on their gradients, the learning rate, etc.
+            optimizer.step()
+
+            # Update the learning rate.
+            scheduler.step()
+
+        # Calculate the average loss over all of the batches.
+        avg_train_loss = total_train_loss / len(train_loader)            
+        
+        # Measure how long this epoch took.
+        training_time = time.time() - t0
+
+        print("")
+        print("  Average training loss: {0:.2f}".format(avg_train_loss))
+        print("  Training epoch duration: {:}".format(training_time))
+        
 
 if __name__ == "__main__":
     main()
