@@ -41,27 +41,3 @@ class SBERT(nn.Sequential):
             model_output = sentence_embeddings_sent1, sentence_embeddings_sent2
 
         return model_output
-
-
-if __name__ == "__main__":
-
-    text_1 = "A person on a horse jumps over a broken down airplane."
-    text_2 = "A person is training his horse for a competition."
-
-    text_3 = "A person on a horse jumps over a broken down airplane."
-    text_4 = "A person is at a diner, ordering an omelette."
-
-    data = [[text_1, text_2], [text_3, text_4]]
-
-    tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
-    encoded_input = tokenizer(data, padding=True, truncation=True, return_tensors='pt')
-    print(encoded_input)
-
-    with torch.no_grad():
-        transformer = Transformer('bert-base-cased')
-        pooling = Pooling()
-        classifier = Classifier(768, 3)
-        model = SBERT(transformer, pooling, classifier)
-        output = model(encoded_input)
-
-    print(output)
