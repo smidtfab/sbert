@@ -2,7 +2,8 @@ import torch
 from utils import reader
 from torch.utils.data import Dataset
 from typing import Dict, List, Tuple
-from transformers import AutoTokenizer
+
+from utils.map_labels import mapStrToInt
 
 class CustomSentenceBatching:
     def __init__(self):
@@ -13,20 +14,7 @@ class CustomSentenceBatching:
     ) -> Tuple[Dict[str, torch.LongTensor], Dict[str, torch.LongTensor], torch.LongTensor]:
         x1, x2, y = zip(*batch)
         x1, x2 = list(x1), list(x2)
-        #print(f"x1 -> {x1}", flush=True)
-        #print(f"x2 -> {x2}", flush=True)
-        #sent_pairs = list(zip(x1, x2))
-        # Zip the tensors to create sentence pairs i.e. [[sent1.1, sent1.2], [2.1, 2.2]]
-        #sent_pairs = [list(pair) for pair in zip(x1, x2)]
-        #print(f"sent_pairs -> {sent_pairs}")
-        #x1 = self.tokenizer(x1, max_length=128, padding=True, truncation='longest_first', add_special_tokens=True, return_tensors='pt')
-        #x2 = self.tokenizer(x2, max_length=128, padding=True, truncation='longest_first', add_special_tokens=True, return_tensors='pt')
         y = torch.LongTensor(y)
-        #print(f"x1 -> {x1['input_ids'].shape}")
-        #print(f"x2 -> {x2['input_ids'].shape}")
-        #print(f"y -> {y.shape}")
-        #print(f"x1 -> {x1}", flush=True)
-        #print(f"x2 -> {x2}", flush=True)
         return x1, x2 , y
 class Dataset(Dataset):
     """
@@ -50,21 +38,13 @@ class Dataset(Dataset):
             index (int): the index
 
         Returns:
-            list: list containing the two sentences and label
+            tuple: tuple containing the two sentences and label
         """
 
-        # Get the data
+        # Index the data
         item = self.train_df[index]
-
-        #sent1, sent2 = item[0], item[1]
-        sample = {}
-        sample['sent1'] = item[0]
-        sample['sent2'] = item[1]
-
-        mapStrToInt = {"contradiction": 0, "entailment": 1, "neutral": 2}
-        sample['label'] = mapStrToInt[item[2]]
-
-        return sample['sent1'], sample['sent2'], sample['label']
+        
+        return item[0], item[1], mapStrToInt(item[2])
 
     def __len__(self):
         """Get the length of the dataset
