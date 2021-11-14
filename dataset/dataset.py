@@ -5,28 +5,31 @@ from typing import Dict, List, Tuple
 
 from utils.map_labels import mapStrToInt
 
+
 class CustomSentenceBatching:
     """Custom collate function to do batching.
     """
+
     def __init__(self):
         pass
 
     def __call__(
-        self, batch: List[Tuple[str, str, int]]
-    ) -> Tuple[List[str, torch.LongTensor], List[str, torch.LongTensor], torch.LongTensor]:
+        self, batch
+    ):
         """Organizes the batching
 
         Args:
             batch (List[Tuple[str, str, int]]): the batch as loaded in the Dataloader
 
         Returns:
-            Tuple[Dict[str, torch.LongTensor], Dict[str, torch.LongTensor], torch.LongTensor]: the two sentences as
+            Tuple[List[str], List[str], torch.LongTensor]: the two sentences as
             separate lists and the labels 
         """
         x1, x2, y = zip(*batch)
         x1, x2 = list(x1), list(x2)
         y = torch.LongTensor(y)
-        return x1, x2 , y
+        return x1, x2, y
+
 
 class Dataset(Dataset):
     """
