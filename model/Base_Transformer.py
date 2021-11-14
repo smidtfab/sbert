@@ -1,9 +1,5 @@
-from pickle import DICT
-from typing import Dict
 import torch
 from torch import nn
-import tqdm
-import numpy as np
 from transformers import AutoTokenizer, AutoModel
 class Transformer(nn.Module):
     def __init__(self, model_name, tokenizer_name, batch_size=16):
