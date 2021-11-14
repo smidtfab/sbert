@@ -81,6 +81,7 @@ def main():
                 # Map classification class scores to labels
                 y_hat = get_predicted_labels(model_output)
                 all_y_hats = torch.cat((all_y_hats, y_hat))
+                # Calculate batch accuracy
                 batch_accuracy = calculate_accuracy(y_hat, labels)
                 print(f"Batch accuracy = {batch_accuracy}")
 
