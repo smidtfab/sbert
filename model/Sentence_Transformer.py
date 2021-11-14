@@ -1,48 +1,67 @@
 import torch
 import torch.nn as nn
-from Base_Transformer import Transformer
-from Pooling import Pooling
-
+from .Base_Transformer import Transformer
+from .Pooling import Pooling
+from .Classifier import Classifier
+from transformers import AutoTokenizer, AutoModel
 class SBERT(nn.Sequential):
-    def __init__(self, transformer, pooling) -> None:
-        #self.pooling = pooling
-
-        super().__init__(transformer, pooling)
+    def __init__(self, transformer, pooling, classifier) -> None:
+        super().__init__(transformer, pooling, classifier)
         self.transformer = transformer
         self.pooling = pooling
-        """
-        if modules is not None and not isinstance(modules, OrderedDict):
-            modules = OrderedDict([(str(idx), module) for idx, module in enumerate(modules)])
+        self.classifier = classifier
+        self._do_classification = True # initialized as do classification (for train)
+    
+    @property
+    def do_classification(self):
+        return self._do_classification
 
-        super().__init__(modules)
+    @do_classification.setter
+    def do_classification(self, value):
+        self._do_classification = value
 
-        if device is None:
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-            logger.info("Use pytorch device: {}".format(device))
+    def forward(self, features_sent1, features_sent2):
+        # u pass
+        tokenizer_output_sent1, transformer_output_sent1 = self.transformer(features_sent1)
 
-        self._target_device = torch.device(device)
-        """
-
-    def forward(self, features):
-        tokenizer_output, transformer_output = self.transformer(features)
-        print(transformer_output)
         # Perform pooling. In this case, max pooling.
-        sentence_embeddings = self.pooling(transformer_output, tokenizer_output['attention_mask'])   
-        print(sentence_embeddings.shape)
-        return sentence_embeddings
+        sentence_embeddings_sent1 = self.pooling(transformer_output_sent1, tokenizer_output_sent1['attention_mask'])   
+        #print(f"Shape sent1 embedding _> {sentence_embeddings_sent1.shape}")
+
+        # v pass
+        tokenizer_output_sent2, transformer_output_sent2 = self.transformer(features_sent2)
+
+        # Perform pooling. In this case, max pooling.
+        sentence_embeddings_sent2 = self.pooling(transformer_output_sent2, tokenizer_output_sent2['attention_mask'])   
+        #print(f"Shape sent2 embedding _> {sentence_embeddings_sent2.shape}")
+
+        if(self.do_classification):
+            model_output = self.classifier(sentence_embeddings_sent1, sentence_embeddings_sent2)
+        else:
+            model_output = torch.cat(sentence_embeddings_sent1, sentence_embeddings_sent2)
+
+        return model_output
 
 
 if __name__ == "__main__":
 
-    text_1 = "Who was Jim Henson ?"
-    text_2 = "Jim Henson was a puppeteer"
+    text_1 = "A person on a horse jumps over a broken down airplane."
+    text_2 = "A person is training his horse for a competition."
 
-    text_3 = "This is a test"
-    text_4 = "Next sentence"
+    text_3 = "A person on a horse jumps over a broken down airplane."
+    text_4 = "A person is at a diner, ordering an omelette."
+
     data = [[text_1, text_2], [text_3, text_4]]
+
+    tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
+    encoded_input = tokenizer(data, padding=True, truncation=True, return_tensors='pt')
+    print(encoded_input)
+
     with torch.no_grad():
         transformer = Transformer('bert-base-cased')
         pooling = Pooling()
-        model = SBERT(transformer, pooling)
-        output = model(data)
+        classifier = Classifier(768, 3)
+        model = SBERT(transformer, pooling, classifier)
+        output = model(encoded_input)
+
     print(output)
