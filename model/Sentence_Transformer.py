@@ -38,7 +38,7 @@ class SBERT(nn.Sequential):
         if(self.do_classification):
             model_output = self.classifier(sentence_embeddings_sent1, sentence_embeddings_sent2)
         else:
-            model_output = torch.cat(sentence_embeddings_sent1, sentence_embeddings_sent2)
+            model_output = sentence_embeddings_sent1, sentence_embeddings_sent2
 
         return model_output
 

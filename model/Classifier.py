@@ -7,6 +7,7 @@ class Classifier(nn.Module):
         self.sent_embedding_dim = sent_embedding_dim
         self.num_classes = num_classes
         self.softmax_layer = nn.Linear(3 * self.sent_embedding_dim, self.num_classes)
+        self.device = 'gpu' if torch.cuda.is_available() else 'cpu'
 
     def forward(self, pooled_embeddings_sent1, pooled_embeddings_sent2):
         # retrieve pooled sentence input from previous model layers
@@ -27,7 +28,7 @@ class Classifier(nn.Module):
         #print(f"Softmax input shape -> {softmax_input.shape}")
 
         # do classification
-        softmax_output = self.softmax_layer(softmax_input)
+        softmax_output = self.softmax_layer(softmax_input.to(self.device))
         #print(f"Softmax output shape -> {softmax_output.shape}")
         
         return softmax_output
