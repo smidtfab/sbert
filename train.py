@@ -8,7 +8,7 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 import transformers
 import math
-import time
+import time  
 
 from dataset.dataset import Dataset, CustomSentenceBatching
 from utils.load_settings import load_settings
@@ -36,9 +36,11 @@ def main():
     #print(settings)
 
     # Load the data
-    train_set = Dataset(settings['data']['training_data_path'])
     collate_fn = CustomSentenceBatching(tokenizer_name=settings['network']['tokenizer_name'])
+    train_set = Dataset(settings['data']['training_data_path'])
     train_loader = DataLoader(train_set, batch_size=settings['network']['batch_size'], collate_fn=collate_fn)
+    dev_set = Dataset(settings['data']['training_data_path'], partition_label='dev')
+    dev_loader = DataLoader(dev_set, batch_size=settings['network']['batch_size'], collate_fn=collate_fn)
     #print(next(iter(train_loader)))
     #print("#####################################train_set")
     #print(len(train_loader))
@@ -62,15 +64,17 @@ def main():
 
     device = 'cpu' # TODO: in settings
     print("Starting training ...")
+
+    best_train_loss = math.inf
     for ep in range(settings['network']['epochs']):
         print(
-            f"--- EPOCH {ep} ---")
+            f"--- EPOCH {ep} ---", flush=True)
         #model_dic = train(Sentence_Transformer, optimizer, scheduler, train_loader, settings['network']['batch_size'], )
         # Measure how long the training epoch takes.
         t0 = time.time()
 
         # Reset the total loss for this epoch.
-        total_train_loss = 0
+        total_train_loss = 0.0
 
         model.train()
 
@@ -107,7 +111,7 @@ def main():
 
             # Perform a forward pass (evaluate the model on this training batch).
             output = model(sentences_encoded_dict, sentences2_encoded_dict)
-            #print(output)
+            print(output)
 
             # Accumulate the training loss over all of the batches so that we can
             # calculate the average loss at the end. `loss` is a Tensor containing a
@@ -131,15 +135,37 @@ def main():
             # Update the learning rate.
             scheduler.step()
 
+        total_dev_loss = 0.0
+        model.eval()     # Optional when not using Model Specific layer
+        for step, batch in enumerate(dev_loader):
+                        
+            sentences_encoded_dict = batch[0]
+            sentences2_encoded_dict = batch[1]
+            labels = batch[2]
+
+            # Perform a forward pass (evaluate the model on this training batch).
+            output = model(sentences_encoded_dict, sentences2_encoded_dict)
+            print(output)
+
+            dev_loss = loss_fn(output, labels)
+            total_dev_loss += dev_loss.item()   
+
         # Calculate the average loss over all of the batches.
-        avg_train_loss = total_train_loss / len(train_loader)            
+        avg_train_loss = total_train_loss / len(train_loader)       
+        avg_dev_loss = total_dev_loss / len(dev_loader)
+
+        if(avg_train_loss < best_train_loss):
+            model_save_name = 'best_model_weights'
+            torch.save(model.state_dict(), os.path.join(os.curdir, model_save_name))
+            best_train_loss = avg_train_loss
         
         # Measure how long this epoch took.
         training_time = time.time() - t0
 
-        print("")
-        print("  Average training loss: {0:.2f}".format(avg_train_loss))
-        print("  Training epoch duration: {:}".format(training_time))
+        print("", flush=True)
+        print("  Average training loss: {0:.2f}".format(avg_train_loss), flush=True)
+        print("  Average dev loss: {0:.2f}".format(avg_dev_loss), flush=True)
+        print("  Training epoch duration: {:}".format(training_time), flush=True)
         
 
 if __name__ == "__main__":
