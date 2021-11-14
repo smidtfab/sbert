@@ -1,16 +1,13 @@
 {
     "general": {
-        "job_id" : "Test_Run",
-        "train_device": "gpu"
+        "job_id" : "Test_Run"
     },
     "network": {
         "architecture": "bert-base-cased",
         "tokenizer_name": "bert-base-cased",
-        "pretrained": true,
         "epochs" : 2,
         "batch_size" : 16, 
         "num_target_classes": 3,
-        "batch_norm": true,
         "learning_rate": 2e-5,
         "warmup_percent": 0.1,
         "sent_embedding_dim": 768
