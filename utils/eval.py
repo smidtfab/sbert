@@ -1,7 +1,7 @@
 import torch
 
 def get_predicted_labels(model_output): 
-    softmaxed_outputs = torch.nn.functional.softmax(model_output)
+    softmaxed_outputs = torch.nn.functional.softmax(model_output, dim=1)
     y_hat = torch.argmax(softmaxed_outputs, dim=1)
     return y_hat
     
