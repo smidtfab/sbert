@@ -6,5 +6,4 @@ def get_predicted_labels(model_output):
     return y_hat
     
 def calculate_accuracy(y_hat, y):
-    print(y_hat, y)
     return torch.sum(y_hat == y).item() / y_hat.shape[0]
