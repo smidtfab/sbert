@@ -16,9 +16,6 @@
         "base_dir": "C:/Users/fsc/Documents/Privat/sbert/",
         "training_data_path": "C:/Users/fsc/Documents/Privat/sbert/data_raw/train_subset.tsv"
     },
-    "data_augmentation" : {
-        
-    },
     "prediction" : {
         "path_model_pt" : "best_model_weights",
         "path_data" : "C:/Users/fsc/Documents/Privat/sbert/data_raw/test_subset.tsv",
