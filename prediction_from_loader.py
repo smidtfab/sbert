@@ -44,7 +44,8 @@ def main():
     model = SBERT(bert, pool, classifier)
 
     # Load model weights
-    model.load_state_dict(torch.load(settings['prediction']['path_model_pt']))
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    model.load_state_dict(torch.load(settings['prediction']['path_model_pt'], map_location=torch.device(device)))
     model.eval()
 
     # Whether to return the class scores (True) or sentence embeddings as tensors (False)

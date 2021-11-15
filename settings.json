@@ -17,7 +17,7 @@
         "training_data_path": "C:/Users/fsc/Documents/Privat/sbert/data_raw/train_subset.tsv"
     },
     "prediction" : {
-        "path_model_pt" : "best_model_weights",
+        "path_model_pt" : "best_model_weights_colab",
         "path_data" : "C:/Users/fsc/Documents/Privat/sbert/data_raw/test_subset.tsv",
         "do_classification": true
     }   
