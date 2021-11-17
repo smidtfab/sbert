@@ -1,5 +1,5 @@
-# sbert
-Repo for sbert implementation for NLI with siamese BERT transformer architecture from the paper: BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding.
+# SBERT
+Repo for sbert implementation for NLI with siamese BERT transformer architecture from the paper: [BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding](https://arxiv.org/abs/1810.04805).
 
 ![grafik](https://user-images.githubusercontent.com/9453363/141699750-f6ce924f-cad9-4742-b6bb-5de870468792.png)
 ## Prerequisites
